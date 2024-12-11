@@ -1,7 +1,7 @@
 import hashlib
 import json
 from time import time
-from uuid import uuid64
+from uuid import uuid4
 import os
 from time import time
 
@@ -14,7 +14,7 @@ class Blockchain:
 
         # Load chain from file or create the genesis block
         self.load_chain()
-        if not self.chain():
+        if not self.chain:
             self.new_block(previous_hash='1', proof=100)
 
     def save_chain(self):
