@@ -1,1 +1,4 @@
 venv/
+blockchain.json
+myenv/
+.python-version
