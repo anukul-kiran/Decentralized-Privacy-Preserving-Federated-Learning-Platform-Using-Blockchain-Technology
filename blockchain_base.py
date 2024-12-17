@@ -15,7 +15,7 @@ class Blockchain:
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
-            'transactions': self.current_transactions,
+            'transactions': self.current_transaction,
             'proof': proof,
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
         }
@@ -46,6 +46,18 @@ class Blockchain:
             current_index += 1
 
         return True
+    
+    def proof_of_work(self, last_block):
+        pass
+
+    def new_transaction(self, sender, recipient, amount):
+        self.current_transaction.append({
+            'sender': sender,
+            'recipient': recipient,
+            'amount': amount,
+        })
+
+        return self.last_block['index'] + 1
     
 
     def save_chain(self):
