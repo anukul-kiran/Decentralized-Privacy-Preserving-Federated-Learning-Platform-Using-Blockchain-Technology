@@ -26,13 +26,14 @@ class Blockchain:
             
         return True
     
-    def new_block(self, proof, previous_hash):
+    def new_block(self, proof, previous_hash, model_update_data):
         """Create a new Block in the Blockchain"""
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
             'transactions': self.current_transactions,
             'proof': proof,
+            'model_update_data': model_update_data,
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
 
         }
@@ -88,7 +89,7 @@ class Blockchain:
 
         return proof
     
-    
+
     
 
 
