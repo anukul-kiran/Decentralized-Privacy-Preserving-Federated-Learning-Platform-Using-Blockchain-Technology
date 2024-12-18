@@ -1,6 +1,8 @@
 from time import time
 import hashlib
 import json
+import numpy as np
+
 
 class Blockchain:
     def __init__(self):
@@ -44,13 +46,14 @@ class Blockchain:
         self.chain.append(block)
         return block
     
-    def new_transaction(self, sender, recipient, weights, biases):
+    def new_transaction(self, sender, recipient, weights, biases, sender_hash):
         """Creates a new transaction to send and receive the weights and biases"""
         self.current_transactions.append({
             'sender': sender,
             'recipient': recipient,
             'weights': weights,
             'biases': biases,
+            'sender_hash': sender_hash,
         })
 
         return self.last_block['index'] + 1
