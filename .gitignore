@@ -2,3 +2,4 @@ venv/
 blockchain.json
 myenv/
 .python-version
+synthetic_dataset.csv
