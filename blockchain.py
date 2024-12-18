@@ -1,17 +1,14 @@
-from time import time
 import hashlib
 import json
-import numpy as np
-
+from time import time
 
 class Blockchain:
     def __init__(self):
         self.current_transactions = []
         self.chain = []
-        
-        # Create genesis block
-        self.new_block(previous_hash='1', proof=100)
 
+        # Create genesis block
+        self.new_block(previous_hash='1', proof=100, model_update_data = {})
 
     def valid_chain(self, chain):
         """Determine if a given blockchain is valid"""
@@ -29,7 +26,7 @@ class Blockchain:
         return True
     
     def new_block(self, proof, previous_hash, model_update_data):
-        """Create a new Block in the Blockchain"""
+        """Create a new block in the Blockchain"""
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
@@ -47,7 +44,7 @@ class Blockchain:
         return block
     
     def new_transaction(self, sender, recipient, weights, biases, sender_hash):
-        """Creates a new transaction to send and receive the weights and biases"""
+        """Creates a neew transaction to send and receive the weights and biases"""
         self.current_transactions.append({
             'sender': sender,
             'recipient': recipient,
@@ -58,31 +55,25 @@ class Blockchain:
 
         return self.last_block['index'] + 1
     
+
     @property
-    def hash(block):
-        """ Creates a SHA-256 hash of a block"""
-        
-        # Must make sure that the dictionary is ordered or we'll have inconsistent hashes
-        block_string = json.dumps(block, sort_keys=True).encode()
+    def hash(self, block):
+        """Creates a SHA-256 hash of a block"""
+
+        # Must make sure that the dictionary is ordered 
+        block_string = json.dump(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
     
     @staticmethod
     def valid_proof(last_proof, proof, last_hash):
-        """Validates the Proof"""
+        """validates the Proof"""
 
         guess = f'{last_proof}{proof}{last_hash}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
         return guess_hash[:4] == "0000"
     
-
     def proof_of_work(self, last_block):
-        """Simple proof of work algorithm
-            - Find a number p' such that hash(pp') contains leading 4 zeros
-            - Where p is the previous proof, and p' is the new proof
-
-            :param last_block: <dict> last Block
-            :return: <int>
-            """
+        """Simple Proof of Work Algorithm"""
         last_proof = last_block['proof']
         last_hash = self.hash(last_block)
 
@@ -91,10 +82,31 @@ class Blockchain:
             proof += 1
 
         return proof
-    
-
-    
 
 
+    def get_model_data(self):
+        """Retrieve global model's weights and training parameters"""
+        latest_block = self.chain[-1]
+        model_update_data = latest_block['model_update_data']
+        return model_update_data
+
     
-    
+    def update_model(self, weights, biases, batch_size, epochs, learning_rate):
+        """Store the updated model parameters and training configuration"""
+        model_update_data = {
+            'weights': weights,
+            'biases': biases,
+            'batch_size': batch_size,
+            'epochs': epochs,
+            'learning_rate': learning_rate,
+        }
+
+        # Update the blockchain with the new model data
+        last_block = self.chain[-1]
+        proof = self.proof_of_work(last_block)
+        previous_hash = self.hash(last_block)
+
+        self.new_block(proof, previous_hash, model_update_data)
+
+
+        
