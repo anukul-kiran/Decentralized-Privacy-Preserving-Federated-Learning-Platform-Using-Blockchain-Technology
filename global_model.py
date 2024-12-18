@@ -1,9 +1,16 @@
 import torch
-from torch import nn
+import torch.nn as nn
+import copy
 
 class GlobalModel(nn.Module):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, blockchain):
+        super().__init()
+
+        self.blockchain = blockchain
+        model_data = self.blockchain.get_model_data()
+
+
+        # Initialize the model with the weights and biases from the blockchain
 
         self.fc1 = nn.Linear(64, 128)
         self.relu1 = nn.ReLU()
@@ -11,10 +18,5 @@ class GlobalModel(nn.Module):
         self.relu2 = nn.ReLU()
         self.fc3 = nn.Linear(128, 3)
 
-    def forward(self, x):
-        x = self.relu1(self.fc1(x))
-        x = self.relu2(self.fc2(x))
-        x = self.fc3(x)
-        return x
-    
+        self.initialize_weights(model_data)
 
