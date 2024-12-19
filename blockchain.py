@@ -21,7 +21,7 @@ logging.basicConfig(
 # Define pydantic model for request validation
 class TransactionModel(BaseModel):
     sender: str
-    recepient: str
+    recipient: str
     weights: List[float]
     biases: List[float]
 
@@ -77,7 +77,7 @@ class Blockchain:
         def new_transaction(transaction: TransactionModel):
             index = self.new_transaction(
                 transaction.sender,
-                transaction.recepient,
+                transaction.recipient,
                 transaction.weights,
                 transaction.biases
             )
