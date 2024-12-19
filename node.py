@@ -1,5 +1,4 @@
 from global_model import GlobalModel
-import threading
 import torch
 import torch.optim as optim
 import numpy as np
@@ -64,4 +63,4 @@ def train_node(node):
     node.train()
     node.update_model()
 
-    
+
