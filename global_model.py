@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import copy
 
 class GlobalModel(nn.Module):
     def __init__(self, blockchain):
@@ -21,7 +20,7 @@ class GlobalModel(nn.Module):
         self.initialize_weights(model_data)
 
     def initialize_weights(self, model_data):
-        """Initialize model weights and biases from blokchain"""
+        """Initialize model weights and biases from blockchain"""
         weights = model_data['weights']
         biases = model_data['biases']
         with torch.no_grad():
@@ -38,4 +37,4 @@ class GlobalModel(nn.Module):
         x = self.fc3(x)
         return x
     
-    
+
