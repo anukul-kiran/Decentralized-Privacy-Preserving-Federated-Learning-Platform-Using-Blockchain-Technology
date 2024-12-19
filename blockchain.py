@@ -111,5 +111,17 @@ class Blockchain:
 
         self.new_block(proof, previous_hash, model_update_data)
 
+    def display_chain(self, index):
+        """Function used to display the required chain in the blockchain"""
+        display_block = self.chain[index]
+        return display_block
+    
+    def last_block(self):
+        """Displays the last block in the chain"""
+        last_block = self.chain[-1]
+        return last_block
+    
+    
+
 
         
