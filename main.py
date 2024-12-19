@@ -1,43 +1,44 @@
+import threading
+import numpy as np
 from blockchain import Blockchain
-import json
+from node import Node
+
+def train_node(node):
+    print(f"Node {node.node_id} is starting training")
+
+    # Perform local training
+    node.train()
+
+    # Update the blockchain with the trained model weights
+    print(f'Node {node.node_id} is updating the blockchain')
+    node.update_blockchain()
+
+    print(f"Node {node.node_id} has completed training")
 
 
 def main():
+    # Initialize the blockchain
     blockchain = Blockchain()
 
-    while True:
-        print("\nMenu")
-        print("1.View Blockchain")
-        print("2.Add Transaction")
-        print("3.Mine Block")
-        print("4.Exit")
+    # Example synthetic dataset(X, y)
+    X = np.random.randn(1000, 64)
+    y = np.random.randn(0, 3, size = 1000)
 
-        choice = input("Enter you choice")
+    # Create and start nodes using multithreading
+    nodes = []
+    threads = []
+    for i in range(3):
+        node = Node(node_id=1, blockchain=blockchain, dataset=(X[i * 300:(i + 1) * 300], y[i * 300:(i + 1) * 300]))
+        nodes.append(node)
+        thread = threading.Thread(target=train_node, args=(node,))
+        threads.append(thread)
+        thread.start()
 
-        if choice == "1":
-            print("\n Blockchain")
-            for block in blockchain.chain:
-                print(json.dumps(block, indent=4))
-        elif choice == "2":
-            sender = input("Enter sender")
-            recepient = input("Enter recepients")
-            amount = input("Enter amount")
-            index = blockchain.new_transaction(sender, recepient, amount)
-            print(f"Transaction will be added to Block {index}")
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
 
-        elif choice == "3":
-            last_block = blockchain.last_block
-            proof = blockchain.proof_of_work(last_block)
-            previous_hash = blockchain.hash(last_block)
-            block = blockchain.new_block(proof, previous_hash)
-            print(f"New Block Forged:\n{json.dumps(block, indent=4)}")
-
-        elif choice == "4":
-            print("Exiting...")
-            break
-        else:
-            print("Ivalid choice! Please try again")
-
-
+    print("Global model updated and stored in blockchain")
+    
 if __name__ == "__main__":
     main()
