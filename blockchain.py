@@ -6,6 +6,10 @@ from Crypto.Hash import SHA256
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 import binascii
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
+import uvicorn
 
 
 logging.basicConfig(
@@ -13,6 +17,21 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler(), logging.FileHandler("blockchain.log", mode="a")]
 )
+
+# Define pydantic model for request validation
+class TransactionModel(BaseModel):
+    sender: str
+    recepient: str
+    weights: List[float]
+    biases: List[float]
+
+class ModelUpdateModel(BaseModel):
+    weights: List[float]
+    biases: List[float]
+    batch_size: int
+    epochs: int
+    learning_rate: float
+
 
 def generate_keys():
     """Generate a pair of RSA keys (private and public)"""
@@ -25,11 +44,95 @@ class Blockchain:
     def __init__(self):
         self.current_transactions = []
         self.chain = []
-        self.participants = {} # To store the participants keys
+        self.participants = {}
+        self.app = FastAPI(title="Blockchain API")
+
 
         # Create genesis block
         self.new_block(previous_hash='1', proof=100, model_update_data = {})
         logging.info("Genesis Block created")
+
+        # Setup API routes
+        self.setup_routes()
+
+    def setup_routes(self):
+        """Setup FastAPI routes"""
+
+        @self.app.get("/")
+        def read_root():
+            return {"status": "active", "blocks": len(self.chain)}
+        
+        @self.app.get("/chain")
+        def get_chain():
+            return {"chain": self.chain, "length": len(self.chain)}
+        
+        @self.app.get("/chain/{index}")
+        def get_block(index: int):
+            try:
+                return {"block": self.display_chain(index)}
+            except:
+                raise HTTPException(status_code=404, detail="Block not Found")
+        
+        @self.app.post("/transaction/new")
+        def new_transaction(transaction: TransactionModel):
+            index = self.new_transaction(
+                transaction.sender,
+                transaction.recepient,
+                transaction.weights,
+                transaction.biases
+            )
+
+            if index is None:
+                raise HTTPException(status_code=400, detail="Invalid Transaction")
+            return {"message": f"Transaction will be added to the Block {index}"}
+        
+        @self.app.post("/mine")
+        def mine():
+            last_block = self.last_block
+            proof = self.proof_of_work(last_block)
+            previous_hash = self.hash(last_block)
+
+            block = self.new_block(proof, previous_hash, {})
+
+            return {
+                'message': 'New Block Forged',
+                'index': block['index'],
+                'transactions': block['transaction'],
+                'proof': block['proof'],
+                'previous_hash': block['previous_hash'],
+
+            }
+        
+        
+        @self.app.post('/model/update')
+        def update_model(model_data: ModelUpdateModel):
+            self.update_model(
+
+                model_data.weights,
+                model_data.biases,
+                model_data.batch_size,
+                model_data.batch_size,
+                model_data.epochs,
+                model_data.learning_rate
+
+            )
+
+            return {'message': 'Model updated successfully'}
+        
+        @self.app.get('/model/current')
+        def get_model():
+            return {'model_data': self.get_model_data()}
+        
+        @self.app.post('/save')
+        def save_blockchain():
+            self.save_chain()
+            return {'message': 'Blockchain saved successfully'}
+        
+        @self.app.post('/load')
+        def load_blockchain():
+            self.load_chain()
+            return {"message": "Blockchain loaded successfully"}
+    
 
     def valid_chain(self, chain):
         """Determine if a given blockchain is valid"""
@@ -177,14 +280,17 @@ class Blockchain:
             logging.info("Blockchain saved to 'blockchain.json")
         except Exception as e:
             logging.error(f"Failed to save blockchain: {e}")
+            raise HTTPException(status_code=500, detail="Failed to save the blockchain")
 
     def load_chain(self, filename="blockchain.json"):
         """Loads the blockchain from a file"""
         try:
             with open(filename, "r") as blockchain:
                 self.chain = json.load(blockchain)
+            logging.info("Blockchain loaded from file")
         except FileNotFoundError:
-            print("Blockchain file not found. Starting a new blockchain")
+            logging.warning("Blockchain file not found. Starting a new Blockchain")
+            raise HTTPException(status_code=404, detail="Blockchain file not found")
     
     def display_chain(self, index):
         """Function used to display a specific block in the chain"""
@@ -194,25 +300,34 @@ class Blockchain:
     
     def verify_signature(self, transaction):
         """verify the transaction"""
-        public_key = RSA.import_key(transaction['sender_public_key'])
-        verifier = PKCS1_v1_5.new(public_key)
-        transaction_data = {
-            'sender': transaction['sender'],
-            'recipient': transaction['recipient'],
-            'weights': transaction['weights'],
-            'biases': transaction['biases'],
-        }
-        h = SHA256.new(json.dumps(transaction_data, sort_keys=True).encode('utf-8'))
-        return verifier.verify(h, binascii.unhexlify(transaction['signature']))
+        try:
+            public_key = RSA.import_key(transaction['sender_public_key'])
+            verifier = PKCS1_v1_5.new(public_key)
+            transaction_data = {
+                'sender': transaction['sender'],
+                'recipient': transaction['recipient'],
+                'weights': transaction['weights'],
+                'biases': transaction['biases'],
+            }
+            h = SHA256.new(json.dumps(transaction_data, sort_keys=True).encode('utf-8'))
+            return verifier.verify(h, binascii.unhexlify(transaction['signature']))
+        except Exception as e:
+            logging.error(f"Signature verification failed: {e}")
+            raise HTTPException(status_code=500, detail="Signature Verification failed")
+            return False
     
 
     def sign_transaction(self, private_key, transaction_data):
         """Sign a transaction witht the private key"""
-        key = RSA.import_key(private_key)
-        signer = PKCS1_v1_5.new(key)
-        h = SHA256.new(json.dumps(transaction_data, sort_keys=True).encode('utf-8'))
-        return binascii.hexlify(signer.sign(h)).decode('utf-8')
-    
+        try:
+            key = RSA.import_key(private_key)
+            signer = PKCS1_v1_5.new(key)
+            h = SHA256.new(json.dumps(transaction_data, sort_keys=True).encode('utf-8'))
+            return binascii.hexlify(signer.sign(h)).decode('utf-8')
+        except Exception as e:
+            logging.error(f"Transaction signing failed: {e}")
+            raise HTTPException(status_code=500, detail="Failed to sign transaction")
+        
 
     def get_or_create_keys(self, participant):
         """Retrieve or generate keys for a participant"""
@@ -225,6 +340,11 @@ class Blockchain:
 
             logging.info(f"Generated new keys for participant: {participant}")
         return self.participants[participant]
+    
+    def run_server(self, host="0.0.0.0", port=8000):
+        """Run the blockchain server"""
+        uvicorn.run(self.app, host=host, port=port)
+
     
 
 
