@@ -2,6 +2,11 @@ import hashlib
 import json
 from time import time
 import logging
+from Crypto.Hash import SHA256
+from Cryto.Cipher import PKCS1_OAEP
+from Crypto.Signature import PKCS1_v1_5
+from Cryto.PublicKey import RSA
+
 
 
 logging.basicConfig(
@@ -59,8 +64,10 @@ class Blockchain:
         logging.info(f"New Block created with index {block['index']}.")
         return block
     
-    def new_transaction(self, sender, recipient, weights, biases, sender_hash):
+    def new_transaction(self, sender, recipient, weights, biases, sender_hash, previous_hash):
         """Creates a neew transaction to send and receive the weights and biases"""
+        
+
         self.current_transactions.append({
             'sender': sender,
             'recipient': recipient,
@@ -143,8 +150,8 @@ class Blockchain:
             with open("blockchain.json", "w", exist_ok=True) as blockchain:
                 json.dump(self.chain, blockchain, indent=4)
             logging.info("Blockchain saved to 'blockchain.json")
-        except:
-            raise Exception 
+        except Exception as e:
+            logging.error(f"Failed to save blockchain: {e}")
 
     def load_chain(self, filename="blockchain.json"):
         """Loads the blockchain from a file"""
@@ -159,6 +166,20 @@ class Blockchain:
         if index < 0 or index >= len(self.chain):
             return f"Invalid block index. Blockchain lenght: {len(self.chain)}"
         return self.chain[index]
+    
+    def verify_signature(self):
+        """
+        Check that the provided signature corresponds to transaction
+        Signed but the public key (sender_address)
+
+        """
+
+        public_key = RSA.importKey(binascii.nhexlify(self.sender_address))
+        verifier = PKCS1_v1_5.new(public_key)
+        h = SHA.new(str(self.to_dict()).encode('utf8'))
+        return verifier.verify(h, biascii.unhexlify(self.signature))
+    
+
     
 
 
