@@ -20,3 +20,22 @@ class GlobalModel(nn.Module):
 
         self.initialize_weights(model_data)
 
+    def initialize_weights(self, model_data):
+        """Initialize model weights and biases from blokchain"""
+        weights = model_data['weights']
+        biases = model_data['biases']
+        with torch.no_grad():
+            self.fc1.weight = nn.Parameter(torch.tensor(weights['fc1'], dtype=torch.float32))
+            self.fc1.bias = nn.Parameter(torch.tensor(biases['fc1'], dtype=torch.float32))
+            self.fc2.weight = nn.Parameter(torch.tensor(weights['fc2'], dtype=torch.float32))
+            self.fc2.bias = nn.Parameter(torch.tensor(biases['fc2'], dtype=torch.float32))
+            self.fc3.weight = nn.Parameter(torch.tensor(weights['fc3'], dtype=torch.float32))
+            self.fc3.bias = nn.Parameter(torch.tensor(biases['fc3'], dtype=torch.float32))
+
+    def forward(self, x):
+        x = self.relu1(self.fc1(x))
+        x = self.relu2(self.fc2(x))
+        x = self.fc3(x)
+        return x
+    
+    
