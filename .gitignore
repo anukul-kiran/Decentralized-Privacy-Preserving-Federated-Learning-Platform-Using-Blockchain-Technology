@@ -4,3 +4,4 @@ myenv/
 .python-version
 synthetic_dataset.csv
 __pycache__/
+blockchain.log

@@ -3,10 +3,10 @@ import json
 from time import time
 import logging
 from Crypto.Hash import SHA256
-from Cryto.Cipher import PKCS1_OAEP
+from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Signature import PKCS1_v1_5
-from Cryto.PublicKey import RSA
-
+from Crypto.PublicKey import RSA
+import binascii
 
 
 logging.basicConfig(
@@ -15,10 +15,18 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(), logging.FileHandler("blockchain.log", mode="a")]
 )
 
+def generate_keys():
+    """Generate a pair of RSA keys (private and public)"""
+    key = RSA.generate(2048)
+    private_key = key.export_key().decode('utf8')
+    public_key = key.publickey().export_key().decode('utf8')
+    return private_key, public_key
+
 class Blockchain:
     def __init__(self):
         self.current_transactions = []
         self.chain = []
+        self.participants = {} # To store the participants keys
 
         # Create genesis block
         self.new_block(previous_hash='1', proof=100, model_update_data = {})
@@ -64,21 +72,39 @@ class Blockchain:
         logging.info(f"New Block created with index {block['index']}.")
         return block
     
-    def new_transaction(self, sender, recipient, weights, biases, sender_hash, previous_hash):
+    def new_transaction(self, sender, recipient, weights, biases):
         """Creates a neew transaction to send and receive the weights and biases"""
-        
 
-        self.current_transactions.append({
+        sender_keys = self.get_or_create_keys(sender)
+        sender_private_key = sender_keys['private_key']
+        sender_public_key = sender_keys['public_key']
+
+        transaction_data = {
             'sender': sender,
             'recipient': recipient,
             'weights': weights,
             'biases': biases,
-            'sender_hash': sender_hash,
-        })
+        }
 
-        logging.info(f"Transaction added: sender: {sender}, recipient: {recipient}.")
-        return self.last_block['index'] + 1
-    
+        signature = self.sign_transaction(sender_private_key, transaction_data)
+        
+
+        transaction = {
+            'sender': sender,
+            'recipient': recipient,
+            'weights': weights,
+            'biases': biases,
+            'signature': signature,
+            'sender_public_key': sender_public_key,
+        }
+
+        if self.verify_signature(transaction):
+            self.current_transactions.append(transaction)
+            logging.info(f"Transaction added: {transaction}") 
+            return self.last_block['index'] + 1
+        else:
+            logging.warning("Invalid transaction signature. Transaction discarded")
+            return None
 
     def hash(self, block):
         """Creates a SHA-256 hash of a block"""
@@ -167,17 +193,44 @@ class Blockchain:
             return f"Invalid block index. Blockchain lenght: {len(self.chain)}"
         return self.chain[index]
     
-    def verify_signature(self):
-        """
-        Check that the provided signature corresponds to transaction
-        Signed but the public key (sender_address)
-
-        """
-
-        public_key = RSA.importKey(binascii.nhexlify(self.sender_address))
+    def verify_signature(self, transaction):
+        """verify the transaction"""
+        public_key = RSA.import_key(transaction['sender_public_key'])
         verifier = PKCS1_v1_5.new(public_key)
-        h = SHA.new(str(self.to_dict()).encode('utf8'))
-        return verifier.verify(h, biascii.unhexlify(self.signature))
+        transaction_data = {
+            'sender': transaction['sender'],
+            'recipient': transaction['recipient'],
+            'weights': transaction['weights'],
+            'biases': transaction['biases'],
+        }
+        h = SHA256.new(json.dumps(transaction_data, sort_keys=True).encode('utf-8'))
+        return verifier.verify(h, binascii.unhexlify(transaction['signature']))
+    
+
+    def sign_transaction(self, private_key, transaction_data):
+        """Sign a transaction witht the private key"""
+        key = RSA.import_key(private_key)
+        signer = PKCS1_v1_5.new(key)
+        h = SHA256.new(json.dumps(transaction_data, sort_keys=True).encode('utf-8'))
+        return binascii.hexlify(signer.sign(h)).decode('utf-8')
+    
+
+    def get_or_create_keys(self, participant):
+        """Retrieve or generate keys for a participant"""
+        if participant not in self.participants:
+            private_key, public_key = generate_keys()
+            self.participants[participant] = {
+                'private_key': private_key,
+                'public_key': public_key
+            }
+
+            logging.info(f"Generated new keys for participant: {participant}")
+        return self.participants[participant]
+    
+
+
+
+
     
 
     
