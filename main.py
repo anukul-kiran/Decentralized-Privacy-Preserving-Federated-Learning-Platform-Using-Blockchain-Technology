@@ -22,7 +22,7 @@ def main():
 
     # Example synthetic dataset(X, y)
     X = np.random.randn(1000, 64)
-    y = np.random.randn(0, 3, size = 1000)
+    y = np.random.randint(0, 3, size = 1000)
 
     # Create and start nodes using multithreading
     nodes = []

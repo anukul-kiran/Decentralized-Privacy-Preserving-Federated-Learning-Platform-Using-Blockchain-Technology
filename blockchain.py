@@ -23,6 +23,10 @@ class Blockchain:
             if block['previous_hash'] != last_block_hash:
                 return False
             
+            last_block = block
+            current_index += 1
+
+            
         return True
     
     def new_block(self, proof, previous_hash, model_update_data):
@@ -56,7 +60,6 @@ class Blockchain:
         return self.last_block['index'] + 1
     
 
-    @property
     def hash(self, block):
         """Creates a SHA-256 hash of a block"""
 

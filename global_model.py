@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class GlobalModel(nn.Module):
     def __init__(self, blockchain):
-        super().__init()
+        super().__init__()
 
         self.blockchain = blockchain
         model_data = self.blockchain.get_model_data()
