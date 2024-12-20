@@ -256,8 +256,6 @@ def run_api_tests():
     print("API tests completed successfully")
 
 if __name__ == "__main__":
-    blockchain = Blockchain()
-    blockchain.run_server()
 
     unittest.main(verbosity=2)
 
