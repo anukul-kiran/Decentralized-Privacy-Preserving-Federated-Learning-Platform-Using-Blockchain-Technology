@@ -279,7 +279,7 @@ class Blockchain:
         guess_hash = hashlib.sha256(guess).hexdigest()
         is_valid = guess_hash[:4] == "0000"
         if is_valid:
-            logging.info("Proof is valid: {proof}.")
+            logging.info(f"Proof is valid: {proof}.")
         return is_valid
     
     def proof_of_work(self, last_block):
