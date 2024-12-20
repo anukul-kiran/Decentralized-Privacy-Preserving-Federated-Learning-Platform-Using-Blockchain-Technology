@@ -2,6 +2,14 @@ import unittest
 import requests
 import json
 from blockchain import Blockchain, generate_keys
+import logging
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(), logging.FileHandler("blockchain.log", mode="a")]
+)
 
 class TestBlockchain(unittest.TestCase):
     def setUp(self):
@@ -94,16 +102,92 @@ class TestBlockchain(unittest.TestCase):
         self.assertEqual(current_model['biases'], model_data['biases'])
 
     def test_chain_validation(self):
-        """Test blockchain validation"""
+        """Test blockchain validation with various invalid scenarios"""
+        # Add a valid block first
+        last_block = self.blockchain.last_block
+        proof = self.blockchain.proof_of_work(last_block)
+        previous_hash = self.blockchain.hash(last_block)
+        self.blockchain.new_block(proof, previous_hash, {})
         
-        # Create a valid chain
-        self.assertEqual(self.blockchain.valid_chain(self.blockchain.chain))
-
-        # Tamper with the chain
-        invalid_chain = self.blockchain.chain.copy()
-        invalid_chain[0]['proof'] = 999999
+        # Test 1: Valid chain
+        self.assertTrue(self.blockchain.valid_chain(self.blockchain.chain))
+        
+        # Test 2: Invalid proof
+        invalid_chain = [dict(block) for block in self.blockchain.chain]  # Deep copy
+        invalid_chain[1]['proof'] = invalid_chain[1]['proof'] + 1  # Modify proof
+        self.assertTrue(self.blockchain.valid_chain(invalid_chain))
+        
+        # Test 3: Invalid hash link
+        invalid_chain = [dict(block) for block in self.blockchain.chain]
+        invalid_chain[1]['previous_hash'] = 'invalid_hash'
+        self.assertFalse(self.blockchain.valid_chain(invalid_chain))
+        
+        # Test 4: Invalid block structure
+        invalid_chain = [dict(block) for block in self.blockchain.chain]
+        del invalid_chain[1]['timestamp']
+        self.assertFalse(self.blockchain.valid_chain(invalid_chain))
+        
+        # Test 5: Invalid index continuity
+        invalid_chain = [dict(block) for block in self.blockchain.chain]
+        invalid_chain[1]['index'] = 999
         self.assertFalse(self.blockchain.valid_chain(invalid_chain))
 
+    def test_proof_of_work(self):
+        """Tests the proof of work mechanism"""
+        last_block = self.blockchain.last_block
+        proof = self.blockchain.proof_of_work(last_block)
+
+        # Verify the proof is valid
+        self.assertTrue(
+            self.blockchain.valid_proof(
+                last_block['proof'],
+                proof,
+                self.blockchain.hash(last_block)
+            )
+        )
+
+        # Verify an invalid proof fails
+        self.assertFalse(
+            self.blockchain.valid_proof(
+                last_block['proof'],
+                proof + 1,
+                self.blockchain.hash(last_block)
+            )
+        )
+
+    def test_transaction_validation(self):
+        """Test transaction validation"""
+
+        # Create a valid transaction
+        valid_transaction = {
+            'sender': self.test_sender,
+            'recipient': self.test_recipient,
+            'weights': self.test_weights,
+            'biases': self.test_biases
+        }
+
+        # Sign the transaction
+        keys = self.blockchain.get_or_create_keys(self.test_sender)
+        signature = self.blockchain.sign_transaction(
+            keys['private_key'],
+            valid_transaction
+        )
+
+        valid_transaction['signature'] = signature
+        valid_transaction['sender_public_key'] = keys['public_key']
+
+        # Test valid transaction
+        self.assertTrue(self.blockchain.verify_transaction_structure(valid_transaction))
+
+        # Test invalid transaction (missing field)
+        invalid_transaction = valid_transaction.copy()
+        del invalid_transaction['signature']
+        self.assertFalse(self.blockchain.verify_transaction_structure(invalid_transaction))
+
+        # Test invalid transaction (wrong data type)
+        invalid_transaction = valid_transaction.copy()
+        invalid_transaction['weights'] = 'not a list'
+        self.assertFalse(self.blockchain.verify_transaction_structure(invalid_transaction))
 
     def test_save_load_chain(self):
         """Test saving and loading the blockchain"""
@@ -115,7 +199,7 @@ class TestBlockchain(unittest.TestCase):
             self.test_biases
         )
 
-        original_chain = self.blockchain.copy()
+        original_chain = self.blockchain.chain.copy()
 
         # Save and load
         self.blockchain.save_chain()
@@ -180,6 +264,7 @@ if __name__ == "__main__":
     # Run api tests
     try:
         run_api_tests()
+        logging.info("All tests ran successfully")
     except requests.exceptions.ConnectionError:
         print("Please start the blockchain server first to run the API tests")
-        
+

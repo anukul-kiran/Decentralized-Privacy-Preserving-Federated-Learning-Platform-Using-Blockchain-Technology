@@ -12,6 +12,7 @@ from typing import List
 import uvicorn
 
 
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -135,25 +136,80 @@ class Blockchain:
     
 
     def valid_chain(self, chain):
-        """Determine if a given blockchain is valid"""
-        logging.info("validating the blockchain")
-        last_block = chain[0]
-        current_index = 1
+        """Determine if a given blockchain is valid by checking
+           1. Hash links between blocks
+           2. Proof of work for each block
+           3. Block structure and contents
+        """
 
-        while current_index < len(chain):
-            block = chain[current_index]
+        # First verify the genesis block
+        if len(chain) == 0:
+            logging.error("Empty chain")
+            return False
+        
+        genesis = chain[0]
+        if genesis['previous_hash'] != '1' or genesis['proof'] != 100:
+            logging.error("Invalid genesis block")
+            return False
+        
+        # Then verify the rest of the chain
+        for i in range(1, len(chain)):
+            current_block = chain[i]
+            previous_block = chain[i - 1]
 
-            # Check whether the hash of the block is correct
-            last_block_hash = self.hash(last_block)
-            if block['previous_hash'] != last_block_hash:
-                logging.error("Invalid block detected at index {current_index}.")
+            # Check block structure
+            required_keys = {'index', 'timestamp', 'transactions', 'proof', 'model_update_data', 'previous_hash'}
+            if not all(key in current_block for key in required_keys):
+                logging.error(f"Invalid Block structure at index {i}")
                 return False
             
-            last_block = block
-            current_index += 1
-
-        logging.info("Blockchain is valid")   
+            # Check Block index continuity
+            if current_block['index'] != previous_block['index'] + 1:
+                logging.error(f"Invalid block index at position {i}")
+                return False
+            
+            # Check hash link
+            if current_block['previous_hash'] != self.hash(previous_block):
+                logging.error(f"Invalid hash link at index {i}")
+                return False
+            
+        logging.info("Blockchain is valid")
         return True
+    
+    def verify_block_proof(self, previous_block, current_block):
+        """Verify the proof of work for a block"""
+        guess = f"{previous_block['proof']}{current_block['proof']}{previous_block['previous_hash']}".encode()
+        guess_hash = hashlib.sha256(guess).hexdigest()
+        return guess_hash[:4] == "0000"
+    
+    @staticmethod
+    def valid_proof(last_proof, proof, last_hash):
+        """Validates the proof"""
+        guess = f'{last_proof}{proof}{last_hash}'.encode()
+        guess_hash = hashlib.sha256(guess).hexdigest()
+        return guess_hash[:4] == "0000"
+
+
+    def verify_transaction_structure(self, transaction):
+        """Verify that a transaction has all required fields and valid signatures"""
+        required_fields = {'sender', 'recipient', 'weights', 'biases', 'signature', 'sender_public_key'}
+        
+        # Check if all required fields are present
+        if not all(field in transaction for field in required_fields):
+            logging.error("Transaction missing required fields")
+            return False
+        
+        # Verify data types
+        if not isinstance(transaction['weights'], list) or not isinstance(transaction['biases'], list):
+            logging.error("Invalid data types in transaction")
+            return False
+        
+        # Verify signature
+        try:
+            return self.verify_signature(transaction)
+        except Exception as e:
+            logging.error(f"Signature verification failed: {e}")
+            return False
     
     def new_block(self, proof, previous_hash, model_update_data):
         """Create a new block in the Blockchain"""
@@ -275,7 +331,7 @@ class Blockchain:
     def save_chain(self):
         """Saves the blockchain"""
         try:
-            with open("blockchain.json", "w", exist_ok=True) as blockchain:
+            with open("blockchain.json", "w") as blockchain:
                 json.dump(self.chain, blockchain, indent=4)
             logging.info("Blockchain saved to 'blockchain.json")
         except Exception as e:
